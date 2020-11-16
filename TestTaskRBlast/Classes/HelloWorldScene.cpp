@@ -22,6 +22,7 @@
  THE SOFTWARE.
  ****************************************************************************/
 
+#include "MyButton.h"
 #include "HelloWorldScene.h"
 #include "SimpleAudioEngine.h"
 
@@ -48,9 +49,10 @@ bool HelloWorld::init()
     {
         return false;
     }
-
-    auto visibleSize = Director::getInstance()->getVisibleSize();
-    Vec2 origin = Director::getInstance()->getVisibleOrigin();
+	auto director = Director::getInstance();
+    auto visibleSize = director->getVisibleSize();
+    Vec2 origin = director->getVisibleOrigin();
+	director->setDisplayStats(false);
 
     /////////////////////////////
     // 2. add a menu item with "X" image, which is clicked to quit the program
@@ -80,44 +82,104 @@ bool HelloWorld::init()
     menu->setPosition(Vec2::ZERO);
     this->addChild(menu, 1);
 
-    /////////////////////////////
+
+	auto eventListener = EventListenerKeyboard::create();
+	eventListener->onKeyPressed = [=](EventKeyboard::KeyCode keyCode, Event* event) {
+		// If a key already exists, do nothing as it will already have a time stamp
+		// Otherwise, set's the timestamp to now
+		if (keys.find(keyCode) == keys.end()) {
+			keys[keyCode] = std::chrono::high_resolution_clock::now();
+		}
+	};
+	eventListener->onKeyReleased = [=](EventKeyboard::KeyCode keyCode, Event* event) {
+		// remove the key.  std::map.erase() doesn't care if the key doesnt exist
+		keys.erase(keyCode);
+	};
+	this->_eventDispatcher->addEventListenerWithSceneGraphPriority(eventListener, this);
+	
+	
+	/////////////////////////////
     // 3. add your codes below...
+	for (int i = 0; i < 4; ++i)
+	{
+		auto button = MyButton::create(
+			"MyButtonIdle.png",
+			"MyButtonPushed.png",
+			"MyButtonDragout.png");
+		auto label = cocos2d::Label::create();
+		label->setString("My Button " + std::to_string(i + 1));
+		label->setAnchorPoint(cocos2d::Vec2(0.5f, 0.5f));
+		label->setPosition(button->getContentSize() / 2.0f);
+		switch (i)
+		{
+		case 0:
+			button->addButtonChild(label, MyButton::ButtonState::IDLE);
+			break;
+		case 1:
+			button->addButtonChild(label, MyButton::ButtonState::PUSHED);
+			break;
+		case 2:
+			button->addButtonChild(label, MyButton::ButtonState::DRAGOUT);
+			break;
+		default:
+			button->addButtonChild(label);
+			break;
+		}
+		button->setPosition(cocos2d::Vec2(
+			visibleSize.width / 2 + (i == 2 ? 50.0 : 0.0),
+			visibleSize.height / 4 * (i + 0.5f)));
+		auto contentSize = button->getContentSize();
+		auto expandZone = contentSize + cocos2d::Size(30, 30);
+		auto safeZone = expandZone + cocos2d::Size(30, 30);
+		button->setExpandZone(expandZone);
+		button->setSafeZone(safeZone);
+		button->setScale(1.0f - i * 0.1f);
+		button->setRotation(180.0f * i / 4);
+		if (i == 0)
+			button->setPushedTimeout(3.0);
 
-    // add a label shows "Hello World"
-    // create and initialize a label
+		button->setTouchEndedCallback(std::bind(
+			&HelloWorld::onMyButtonTouchEndedCallback, this,
+			std::placeholders::_1));
 
-    auto label = Label::createWithTTF("Hello World", "fonts/Marker Felt.ttf", 24);
-    if (label == nullptr)
-    {
-        problemLoading("'fonts/Marker Felt.ttf'");
-    }
-    else
-    {
-        // position the label on the center of the screen
-        label->setPosition(Vec2(origin.x + visibleSize.width/2,
-                                origin.y + visibleSize.height - label->getContentSize().height));
+		this->addChild(button);
+	}
 
-        // add the label as a child to this layer
-        this->addChild(label, 1);
-    }
-
-    // add "HelloWorld" splash screen"
-    auto sprite = Sprite::create("HelloWorld.png");
-    if (sprite == nullptr)
-    {
-        problemLoading("'HelloWorld.png'");
-    }
-    else
-    {
-        // position the sprite on the center of the screen
-        sprite->setPosition(Vec2(visibleSize.width/2 + origin.x, visibleSize.height/2 + origin.y));
-
-        // add the sprite as a child to this layer
-        this->addChild(sprite, 0);
-    }
     return true;
 }
 
+void HelloWorld::onMyButtonTouchEndedCallback(cocos2d::EventCustom* event)
+{
+	auto data = reinterpret_cast<MyButton::TouchEndedCallbackData*>(event->getUserData());
+	auto button = data->button;
+	if (keys.find(EventKeyboard::KeyCode::KEY_CTRL) == keys.end())
+	{
+		static int i = 0;
+		i += 1;
+		std::string text;
+		text = "Touch " + std::to_string(i);
+		switch (data->state)
+		{
+		case MyButton::ButtonState::IDLE:
+			text += " IDLE";
+			break;
+		case MyButton::ButtonState::PUSHED:
+			text += " PUSHED";
+			break;
+		case MyButton::ButtonState::DRAGOUT:
+			text += " DRAGOUT";
+			break;
+		}
+		if (data->is_long)
+			text + " long";
+		auto label = dynamic_cast<cocos2d::Label*>(button->getChildren().front());
+		label->setString(text);
+	}
+	else
+	{
+		button->removeFromParent();
+	}
+}
 
 void HelloWorld::menuCloseCallback(Ref* pSender)
 {

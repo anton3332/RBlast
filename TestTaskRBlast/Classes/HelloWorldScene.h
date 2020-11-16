@@ -25,6 +25,7 @@
 #ifndef __HELLOWORLD_SCENE_H__
 #define __HELLOWORLD_SCENE_H__
 
+#include <map>
 #include "cocos2d.h"
 
 class HelloWorld : public cocos2d::Scene
@@ -36,9 +37,16 @@ public:
     
     // a selector callback
     void menuCloseCallback(cocos2d::Ref* pSender);
-    
+
+	// my button callback
+	void onMyButtonTouchEndedCallback(cocos2d::EventCustom*);
+
     // implement the "static create()" method manually
     CREATE_FUNC(HelloWorld);
+
+private:
+	std::map<cocos2d::EventKeyboard::KeyCode,
+		std::chrono::high_resolution_clock::time_point> keys;
 };
 
 #endif // __HELLOWORLD_SCENE_H__
